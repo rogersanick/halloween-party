@@ -1,0 +1,19 @@
+node_modules
+.dist
+/build
+coverage
+.vite
+dist
+
+# Generated assets
+public/*.svg
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor folders
+.vscode
+.idea
