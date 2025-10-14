@@ -1,6 +1,6 @@
-import { Suspense } from 'react'
+import { Suspense, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { useGLTF, View } from '@react-three/drei'
+import { Float, useGLTF, View } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 
 import ScrollIndicator from './components/ScrollIndicator'
@@ -18,7 +18,7 @@ const schedule = [
   { time: '10:00 PM', title: 'Bedtime', detail: 'Time to say goodbye and head home.' },
 ]
 
-function LandingViewScene() {
+function Pumpkin({ scale }: { scale: number }) {
   const { scene } = useGLTF('/jackolantern.glb')
 
   // Traverse scene objects and set materials
@@ -33,6 +33,12 @@ function LandingViewScene() {
     }
   })
 
+  return (
+    <primitive object={scene.clone()} scale={scale} castShadow receiveShadow />
+  )
+}
+
+function LandingViewScene() {
   // Create array of pumpkins with random positions and sizes
   const pumpkins = Array.from({ length: 30 }, (_, i) => ({
     id: i,
@@ -59,7 +65,7 @@ function LandingViewScene() {
             position={pumpkin.position}
             userData={{ spawnTime: Date.now() + pumpkin.spawnTime }}
           >
-            <primitive object={scene.clone()} scale={pumpkin.scale} castShadow receiveShadow />
+            <Pumpkin scale={pumpkin.scale} />
           </RigidBody>
         ))}
 
@@ -89,13 +95,35 @@ function LandingViewScene() {
   )
 }
 
+function RsvpViewScene() {
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[4, 6, 5]} intensity={0.9} />
+      <Float
+        speed={1.2}
+        floatIntensity={0.6}
+        rotationIntensity={0.3}
+        position={[0, 0.5, -8]}
+        rotation={[-Math.PI / 24, Math.PI / 8, 0]}
+      >
+        <Pumpkin scale={4.5} />
+      </Float>
+    </>
+  )
+}
+
 function App() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null!)
+
   return (
     <>
       <Canvas
         shadows
         dpr={[1, 1.5]}
         camera={{ position: [0, 1.4, 6], fov: 45 }}
+        eventSource={scrollContainerRef}
+        eventPrefix="client"
         style={{
           position: 'fixed',
           inset: 0,
@@ -107,11 +135,16 @@ function App() {
       </Canvas>
       <div
         id="scroll-container"
+        ref={scrollContainerRef}
         className="relative h-dvh snap-y snap-mandatory overflow-y-auto text-moonlight"
       >
         <ScrollIndicator />
         <section id="home" className="relative h-dvh snap-start overflow-hidden">
-          <View className="pointer-events-none absolute inset-0 -z-10">
+          <View
+            index={1}
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{ width: '100%', height: '100%' }}
+          >
             <Suspense fallback={null}>
               <LandingViewScene />
             </Suspense>
@@ -127,7 +160,7 @@ function App() {
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em]">
                 Oct 31 • 4pm — 10pm
               </span>
-              <h1 className="font-spooky text-5xl tracking-wider text-amber-200 drop-shadow-[0_0_25px_rgba(249,115,22,0.45)] md:text-7xl">
+              <h1 className="font-spooky text-5xl max-w-lg tracking-wider text-amber-200 drop-shadow-[0_0_25px_rgba(249,115,22,0.45)] md:text-7xl">
                 Besties, Babies, Boos, and Booze
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-white/80">
@@ -164,11 +197,14 @@ function App() {
             ></iframe>
           </div>
         </section>
-
-        <section id="rsvp" className="h-dvh snap-start">
-          <View className="pointer-events-none absolute inset-0 -z-10">
+        <section id="rsvp" className="relative h-dvh snap-start overflow-hidden">
+          <View
+            index={2}
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{ width: '100%', height: '100%' }}
+          >
             <Suspense fallback={null}>
-              <LandingViewScene />
+              <RsvpViewScene />
             </Suspense>
           </View>
           <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
@@ -179,9 +215,7 @@ function App() {
                 <div className="max-w-2xl space-y-3">
                   <h2 className="font-spooky text-4xl text-midnight">RSVP for you & your boo</h2>
                   <p>
-                    Give us a heads-up so we can stock the cider, prep the candy bar, and set aside
-                    space for strollers and sleepyheads. We&apos;ll email the parking plan and
-                    costume inspo once you&apos;re on the list.
+                    Give us a heads-up so we can get a head count for games, drinks, delicious overly sweet treasts and more. Also, feel free to show up last minute, the more the merrier.
                   </p>
                 </div>
               </div>
@@ -242,5 +276,7 @@ function App() {
     </>
   )
 }
+
+useGLTF.preload('/jackolantern.glb')
 
 export default App
