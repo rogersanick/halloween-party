@@ -5,17 +5,20 @@ This app now includes an RSVP form and attendee list powered by Supabase.
 ## Setup
 
 1. Install deps:
+
 ```bash
 npm install
 ```
 
 2. Create a `.env` file with:
+
 ```bash
 VITE_SUPABASE_URL=your_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
 
 3. Supabase table (SQL):
+
 ```sql
 create table if not exists public.rsvps (
   id uuid primary key default gen_random_uuid(),
@@ -34,6 +37,7 @@ create policy "Allow public reads" on public.rsvps
 ```
 
 4. Start dev server:
+
 ```bash
 npm run dev
 ```

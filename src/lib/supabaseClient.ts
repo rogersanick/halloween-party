@@ -14,5 +14,3 @@ export const createClient = (): SupabaseClient | null => {
   }
   return createBrowserClient(supabaseUrl, supabaseAnonKey) as unknown as SupabaseClient
 }
-
-
