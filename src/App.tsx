@@ -16,7 +16,7 @@ const schedule = [
   },
   {
     time: '8:00 PM',
-    title: 'Costume Contest Winner Announcement',
+    title: 'Winner Announcement',
     detail: 'We will announce the winner of the costume contest.',
   },
   { time: '10:00 PM', title: 'Bedtime', detail: 'Time to say goodbye and head home.' },
@@ -495,20 +495,16 @@ function App() {
           </div>
         </section>
         <section id="schedule" className="h-dvh snap-start">
-          <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
+          <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-4 py-6">
             <div className="grid gap-10 rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur lg:grid-cols-[2fr_3fr]">
               <div className="space-y-6">
                 <h2 className="font-spooky text-4xl text-amber-200">Evening Schedule</h2>
-                <p className="text-sm text-white/70">
-                  Structured enough for nap times, loose enough for late-night laughs. Follow along
-                  or jump in wherever feels right.
-                </p>
               </div>
-              <ol className="space-y-4 border-l border-white/10 pl-6">
+              <ol className="space-y-4 border-l border-white/10 pl-2">
                 {schedule.map((item) => (
                   <li key={item.title} className="relative pl-6">
                     <span className="absolute -left-[15px] top-1.5 h-3 w-3 rounded-full bg-pumpkin shadow-[0_0_10px_rgba(249,115,22,0.7)]" />
-                    <div className="flex flex-col gap-1 rounded-2xl bg-black/30 p-4">
+                    <div className="flex flex-col gap-1 rounded-lg bg-black/30 p-3">
                       <span className="text-xs uppercase tracking-[0.3em] text-pumpkin">
                         {item.time}
                       </span>
