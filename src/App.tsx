@@ -1,9 +1,10 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Float, useGLTF, View } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 
 import ScrollIndicator from './components/ScrollIndicator'
+import { createClient } from './lib/supabaseClient'
 const schedule = [
   {
     time: '4:00 PM',
@@ -115,6 +116,83 @@ function RsvpViewScene() {
 
 function App() {
   const scrollContainerRef = useRef<HTMLDivElement>(null!)
+  const supabaseRef = useRef(createClient())
+
+  type RsvpRow = {
+    id: string
+    name: string
+    costume: string | null
+    coming: boolean
+    created_at: string
+  }
+
+  const [name, setName] = useState('')
+  const [costume, setCostume] = useState('')
+  const [coming, setComing] = useState(true)
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
+
+  const [attendees, setAttendees] = useState<RsvpRow[]>([])
+  const [attendeesLoading, setAttendeesLoading] = useState(false)
+  const [attendeesError, setAttendeesError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadAttendees = async () => {
+      if (!supabaseRef.current) return
+      setAttendeesLoading(true)
+      setAttendeesError(null)
+      const { data, error } = await supabaseRef.current
+        .from('rsvps')
+        .select('id,name,costume,coming,created_at')
+        .eq('coming', true)
+        .order('created_at', { ascending: false })
+      if (error) {
+        setAttendeesError('Failed to load attendees')
+      } else {
+        setAttendees(data ?? [])
+      }
+      setAttendeesLoading(false)
+    }
+    void loadAttendees()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!supabaseRef.current) {
+      setSubmitError('RSVP is not configured. Missing env vars.')
+      return
+    }
+    setSubmitError(null)
+    setSubmitSuccess(null)
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setSubmitError('Please enter your name')
+      return
+    }
+
+    setSubmitLoading(true)
+    const { data, error } = await supabaseRef.current
+      .from('rsvps')
+      .insert({ name: trimmedName, costume: costume.trim() || null, coming })
+      .select('id,name,costume,coming,created_at')
+      .single()
+
+    if (error) {
+      setSubmitError('Something went wrong. Please try again.')
+    } else {
+      setSubmitSuccess(coming ? "You're on the list!" : 'Saved your response!')
+      // Optimistically update attendee list if they are coming
+      if (data && data.coming) {
+        setAttendees((prev) => [data as RsvpRow, ...prev])
+      }
+      setName('')
+      setCostume('')
+      setComing(true)
+    }
+    setSubmitLoading(false)
+  }
 
   return (
     <>
@@ -166,6 +244,9 @@ function App() {
               <p className="max-w-2xl text-lg leading-relaxed text-white/80">
                 Come one, come all to the spookiest party on Edgewood Lane 👻
               </p>
+              <p className="max-w-2xl text-lg leading-relaxed text-white/80">
+                Scroll down to RSVP and add a costumer hint 👀
+              </p>
             </div>
 
             <div className="absolute bottom-4 ml-4 transform">
@@ -208,16 +289,99 @@ function App() {
             </Suspense>
           </View>
           <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
-            <div className="relative overflow-hidden rounded-3xl border border-pumpkin/40 bg-gradient-to-br from-pumpkin via-ember to-pumpkin/70 p-10 text-midnight shadow-[0_15px_45px_rgba(249,115,22,0.45)]">
-              <div className="absolute -right-12 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full border border-white/40 opacity-40" />
-              <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full border border-white/40 opacity-30" />
-              <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                <div className="max-w-2xl space-y-3">
-                  <h2 className="font-spooky text-4xl text-midnight">RSVP for you & your boo</h2>
-                  <p>
-                    Give us a heads-up so we can get a head count for games, drinks, delicious overly sweet treasts and more. Also, feel free to show up last minute, the more the merrier.
-                  </p>
+            <div className="grid gap-10 md:grid-cols-2">
+              {/* RSVP Card */}
+              <div className="relative overflow-hidden rounded-3xl border border-pumpkin/40 bg-gradient-to-br from-pumpkin via-ember to-pumpkin/70 p-10 text-midnight shadow-[0_15px_45px_rgba(249,115,22,0.45)]">
+                <div className="absolute -right-12 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full border border-white/40 opacity-40" />
+                <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full border border-white/40 opacity-30" />
+                <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                  <div className="max-w-2xl space-y-3">
+                    <h2 className="font-spooky text-4xl text-midnight">RSVP for you & your boo</h2>
+                    <p>
+                      Give us a heads-up so we can get a head count for games, drinks, delicious overly sweet treasts and more. Also, feel free to show up last minute, the more the merrier.
+                    </p>
+                  </div>
                 </div>
+                <div className="mt-8">
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-semibold">Name</label>
+                      <input
+                        id="name"
+                        type="text"
+                        className="mt-1 w-full rounded-lg border border-black/10 bg-white/90 px-3 py-2 text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
+                        placeholder="e.g. Sally Skellington"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="costume" className="block text-sm font-semibold">Costume</label>
+                      <input
+                        id="costume"
+                        type="text"
+                        className="mt-1 w-full rounded-lg border border-black/10 bg-white/90 px-3 py-2 text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
+                        placeholder="e.g. Vampire Accountant"
+                        value={costume}
+                        onChange={(e) => setCostume(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="coming"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-black/30 text-amber-600 focus:ring-amber-500"
+                        checked={coming}
+                        onChange={(e) => setComing(e.target.checked)}
+                      />
+                      <label htmlFor="coming" className="select-none">I’m coming!</label>
+                    </div>
+                    {submitError ? (
+                      <p className="text-sm font-medium text-red-900">{submitError}</p>
+                    ) : null}
+                    {submitSuccess ? (
+                      <p className="text-sm font-medium text-green-900">{submitSuccess}</p>
+                    ) : null}
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-lg bg-midnight px-4 py-2 font-semibold text-amber-200 shadow hover:bg-black/90 disabled:opacity-60"
+                      disabled={submitLoading || !supabaseRef.current}
+                    >
+                      {submitLoading ? 'Submitting…' : (!supabaseRef.current ? 'RSVP unavailable' : 'Submit RSVP')}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Attending Card */}
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                <h3 className="mb-3 text-lg font-semibold">Attending</h3>
+                {!supabaseRef.current ? (
+                  <p className="text-sm opacity-80">RSVP list unavailable. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</p>
+                ) : attendeesLoading ? (
+                  <p className="text-sm opacity-80">Loading attendees…</p>
+                ) : attendeesError ? (
+                  <p className="text-sm text-red-900">{attendeesError}</p>
+                ) : attendees.length === 0 ? (
+                  <p className="text-sm opacity-80">No one on the list yet. Be the first!</p>
+                ) : (
+                  <ul className="max-h-[50vh] overflow-y-auto divide-y divide-black/10 rounded-lg bg-white/60 text-black shadow md:max-h-[60vh]">
+                    {attendees.map((a) => (
+                      <li key={a.id} className="px-4 py-3">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="font-semibold">{a.name}</span>
+                          <span className="text-xs text-black/60">
+                            {new Date(a.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {a.costume ? (
+                          <p className="text-sm text-black/80">Costume: {a.costume}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>
