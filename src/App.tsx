@@ -1,7 +1,10 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { Float, useGLTF, View } from '@react-three/drei'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useGLTF, View } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
+import type { RapierRigidBody } from '@react-three/rapier'
+import { Plane, Raycaster, Vector2, Vector3 } from 'three'
+import type { Object3D } from 'three'
 
 import ScrollIndicator from './components/ScrollIndicator'
 import { createClient } from './lib/supabaseClient'
@@ -19,56 +22,184 @@ const schedule = [
   { time: '10:00 PM', title: 'Bedtime', detail: 'Time to say goodbye and head home.' },
 ]
 
-function Pumpkin({ scale }: { scale: number }) {
-  const { scene } = useGLTF('/jackolantern.glb')
+const INITIAL_PUMPKINS = 100
+const MAX_PUMPKINS = 45
+const PUMPKIN_LIFETIME = 30000
+const CLEANUP_HEIGHT = -6
+const GROUND_TILT = 0
+const CURSOR_PLANE_HEIGHT = 1.2
 
-  // Traverse scene objects and set materials
-  scene.traverse((child) => {
-    if (child.type === 'Mesh' && (child as any).material) {
-      const mesh = child as any
-      if (child.name.toLowerCase().includes('pumpkin')) {
-        mesh.material.color.set('#ff6600') // Orange color for pumpkin
-      } else if (child.name.toLowerCase().includes('vine')) {
-        mesh.material.color.set('#228b22') // Green color for vine
-      }
+type PumpkinData = {
+  id: number
+  rotation: [number, number, number]
+  position: [number, number, number]
+  scale: number
+  createdAt: number
+}
+
+function PumpkinInstance({
+  data,
+  model,
+  onRemove,
+}: {
+  data: PumpkinData
+  model: Object3D
+  onRemove: (id: number) => void
+}) {
+  const bodyRef = useRef<RapierRigidBody | null>(null)
+  const hasRemoved = useRef(false)
+  const clonedScene = useMemo(() => model.clone(), [model])
+
+  useFrame(() => {
+    if (hasRemoved.current || !bodyRef.current) return
+
+    const { y } = bodyRef.current.translation()
+    if (y < CLEANUP_HEIGHT) {
+      hasRemoved.current = true
+      onRemove(data.id)
     }
   })
 
   return (
-    <primitive object={scene.clone()} scale={scale} castShadow receiveShadow />
+    <RigidBody
+      ref={bodyRef}
+      colliders="ball"
+      restitution={0.7}
+      rotation={data.rotation}
+      friction={0.3}
+      position={data.position}
+    >
+      <primitive object={clonedScene} scale={data.scale} rotation={data.rotation} castShadow receiveShadow />
+    </RigidBody>
+  )
+}
+
+function CursorBumper() {
+  const bodyRef = useRef<RapierRigidBody | null>(null)
+  const pointer = useRef(new Vector2(0, 0))
+  const { camera, size } = useThree()
+
+  const plane = useMemo(() => new Plane(new Vector3(0, 1, 0), -CURSOR_PLANE_HEIGHT), [])
+  const raycaster = useMemo(() => new Raycaster(), [])
+  const intersectionPoint = useMemo(() => new Vector3(), [])
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      pointer.current.set(
+        (event.clientX / size.width) * 2 - 1,
+        -(event.clientY / size.height) * 2 + 1,
+      )
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    return () => window.removeEventListener('pointermove', handlePointerMove)
+  }, [size.height, size.width])
+
+  useFrame(() => {
+    if (!bodyRef.current) return
+
+    raycaster.setFromCamera(pointer.current, camera)
+    const point = raycaster.ray.intersectPlane(plane, intersectionPoint)
+
+    if (point) {
+      bodyRef.current.setNextKinematicTranslation({ x: point.x, y: point.y, z: point.z })
+    }
+  })
+
+  return (
+    <RigidBody
+      type="kinematicPosition"
+      colliders="ball"
+      ref={bodyRef}
+      enabledRotations={[false, false, false]}
+    >
+      <mesh visible={false}>
+        <sphereGeometry args={[0.45, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </RigidBody>
   )
 }
 
 function LandingViewScene() {
-  // Create array of pumpkins with random positions and sizes
-  const pumpkins = Array.from({ length: 30 }, (_, i) => ({
-    id: i,
-    position: [
-      (Math.random() - 0.5) * 10, // Random x between -5 and 5
-      Math.random() * 8 + 8, // Random y between 8 and 16 (higher drop)
-      (Math.random() - 0.5) * 10, // Random z between -5 and 5
-    ] as [number, number, number],
-    scale: Math.random() * 1 + 0.2, // Random scale between 0.2 and 0.8
-    spawnTime: Math.random() * 5000, // Stagger spawn times
-  }))
+  const { scene } = useGLTF('/jackolantern.glb')
+
+  const pumpkinTemplate = useMemo(() => {
+    const preparedScene = scene.clone()
+    preparedScene.traverse((child) => {
+      if (child.type === 'Mesh' && (child as any).material) {
+        const mesh = child as any
+        if (child.name.toLowerCase().includes('pumpkin')) {
+          mesh.material.color.set('#ff6600')
+        } else if (child.name.toLowerCase().includes('vine')) {
+          mesh.material.color.set('#228b22')
+        }
+      }
+    })
+
+    return preparedScene
+  }, [scene])
+
+  const [pumpkins, setPumpkins] = useState<PumpkinData[]>(() => {
+    const now = Date.now()
+    return Array.from({ length: INITIAL_PUMPKINS }, (_, index) => ({
+      id: index,
+      position: [
+        (Math.random() - 0.5) * 4,
+        Math.random() * 4 + 4,
+        (Math.random() - 1) * 4,
+      ],
+      rotation: [0, Math.random() * 2 * Math.PI, 0],
+      scale: Math.random() * 0.8 + 0.3,
+      createdAt: now - Math.random() * 2000,
+    }))
+  })
+
+  const nextId = useRef(pumpkins.length)
+
+  const generatePumpkin = useCallback((): PumpkinData => {
+    const id = nextId.current++
+    return {
+      id,
+      position: [
+        (Math.random() - 0.5) * 8,
+        Math.random() * 4 + 6,
+        (Math.random() - 0.5) * 8,
+      ],
+      rotation: [0, Math.random() * 2 * Math.PI, 0],
+      scale: Math.random() * 0.8 + 0.3,
+      createdAt: Date.now(),
+    }
+  }, [nextId])
+
+  const removePumpkin = useCallback((id: number) => {
+    setPumpkins((previous) => previous.filter((pumpkin) => pumpkin.id !== id))
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setPumpkins((previous) => {
+        const now = Date.now()
+        const filtered = previous.filter((pumpkin) => now - pumpkin.createdAt < PUMPKIN_LIFETIME)
+        const nextPumpkin = generatePumpkin()
+        const withNext = [...filtered, nextPumpkin]
+        return withNext.slice(-MAX_PUMPKINS)
+      })
+    }, 1500)
+
+    return () => window.clearInterval(interval)
+  }, [generatePumpkin])
 
   return (
     <>
       <ambientLight intensity={1} />
       <directionalLight position={[4, 6, 5]} intensity={1.15} castShadow />
-      <Physics gravity={[0, -3, 0]}>
+      <Physics gravity={[0, -2, 0]}>
         {pumpkins.map((pumpkin) => (
-          <RigidBody
-            key={pumpkin.id}
-            colliders="ball"
-            restitution={0.7}
-            friction={0.3}
-            position={pumpkin.position}
-            userData={{ spawnTime: Date.now() + pumpkin.spawnTime }}
-          >
-            <Pumpkin scale={pumpkin.scale} />
-          </RigidBody>
+          <PumpkinInstance key={pumpkin.id} data={pumpkin} model={pumpkinTemplate} onRemove={removePumpkin} />
         ))}
+
+        <CursorBumper />
 
         {/* Invisible walls to contain pumpkins */}
         <RigidBody type="fixed" colliders={false}>
@@ -80,8 +211,8 @@ function LandingViewScene() {
 
         {/* Ground with cleanup trigger */}
         <RigidBody type="fixed" colliders={false} position={[0, -2, 0]}>
-          <CuboidCollider args={[8, 0.25, 8]} />
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <CuboidCollider args={[8, 0.25, 8]} rotation={[GROUND_TILT, 0, 0]} />
+          <mesh rotation={[-Math.PI / 2 + GROUND_TILT, 0, 0]} receiveShadow>
             <circleGeometry args={[9, 64]} />
             <meshStandardMaterial color="#0f172a" roughness={1} transparent opacity={0} />
           </mesh>
@@ -92,24 +223,6 @@ function LandingViewScene() {
           <CuboidCollider args={[10, 1, 10]} sensor />
         </RigidBody>
       </Physics>
-    </>
-  )
-}
-
-function RsvpViewScene() {
-  return (
-    <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[4, 6, 5]} intensity={0.9} />
-      <Float
-        speed={1.2}
-        floatIntensity={0.6}
-        rotationIntensity={0.3}
-        position={[0, 0.5, -8]}
-        rotation={[-Math.PI / 24, Math.PI / 8, 0]}
-      >
-        <Pumpkin scale={4.5} />
-      </Float>
     </>
   )
 }
@@ -241,12 +354,14 @@ function App() {
               <h1 className="font-spooky text-5xl max-w-lg tracking-wider text-amber-200 drop-shadow-[0_0_25px_rgba(249,115,22,0.45)] md:text-7xl">
                 Besties, Babies, Boos, and Booze
               </h1>
-              <p className="max-w-2xl text-lg leading-relaxed text-white/80">
-                Come one, come all to the spookiest party on Edgewood Lane 👻
-              </p>
-              <p className="max-w-2xl text-lg leading-relaxed text-white/80">
-                Scroll down to RSVP and add a costumer hint 👀
-              </p>
+              <div className='flex flex-col gap-2 items-center justify-center'> 
+                <p className="max-w-2xl text-lg leading-relaxed text-white/80">
+                  Come one, come all to the spookiest party on Edgewood Lane 👻
+                </p>
+                <p className="max-w-2xl text-lg leading-relaxed text-white/80">
+                  Scroll down to RSVP and add a costumer hint 👀
+                </p>
+              </div>
             </div>
 
             <div className="absolute bottom-4 ml-4 transform">
@@ -279,15 +394,6 @@ function App() {
           </div>
         </section>
         <section id="rsvp" className="relative h-dvh snap-start overflow-hidden">
-          <View
-            index={2}
-            className="pointer-events-none absolute inset-0 -z-10 h-full w-full"
-            style={{ width: '100%', height: '100%' }}
-          >
-            <Suspense fallback={null}>
-              <RsvpViewScene />
-            </Suspense>
-          </View>
           <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
             <div className="grid gap-10 md:grid-cols-2">
               {/* RSVP Card */}
@@ -317,12 +423,12 @@ function App() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="costume" className="block text-sm font-semibold">Costume</label>
+                      <label htmlFor="costume hint" className="block text-sm font-semibold">Costume Hint</label>
                       <input
-                        id="costume"
+                        id="costume hint"
                         type="text"
                         className="mt-1 w-full rounded-lg border border-black/10 bg-white/90 px-3 py-2 text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
-                        placeholder="e.g. Vampire Accountant"
+                        placeholder="e.g. Vampire Accountant 🧛‍♂️🧮"
                         value={costume}
                         onChange={(e) => setCostume(e.target.value)}
                       />
@@ -356,7 +462,7 @@ function App() {
 
               {/* Attending Card */}
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <h3 className="mb-3 text-lg font-semibold">Attending</h3>
+                <h3 className="mb-3 text-lg font-semibold">RSVPs</h3>
                 {!supabaseRef.current ? (
                   <p className="text-sm opacity-80">RSVP list unavailable. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</p>
                 ) : attendeesLoading ? (
@@ -370,7 +476,12 @@ function App() {
                     {attendees.map((a) => (
                       <li key={a.id} className="px-4 py-3">
                         <div className="flex items-baseline justify-between gap-3">
-                          <span className="font-semibold">{a.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{a.name}</span>
+                            <span className="text-sm">
+                              {a.coming ? '✅' : '❌'}
+                            </span>
+                          </div>
                           <span className="text-xs text-black/60">
                             {new Date(a.created_at).toLocaleDateString()}
                           </span>
