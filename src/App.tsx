@@ -250,25 +250,16 @@ function App() {
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
 
   const [attendees, setAttendees] = useState<RsvpRow[]>([])
-  const [attendeesLoading, setAttendeesLoading] = useState(false)
-  const [attendeesError, setAttendeesError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadAttendees = async () => {
       if (!supabaseRef.current) return
-      setAttendeesLoading(true)
-      setAttendeesError(null)
-      const { data, error } = await supabaseRef.current
+      const { data } = await supabaseRef.current
         .from('rsvps')
         .select('id,name,costume,coming,created_at')
         .eq('coming', true)
         .order('created_at', { ascending: false })
-      if (error) {
-        setAttendeesError('Failed to load attendees')
-      } else {
-        setAttendees(data ?? [])
-      }
-      setAttendeesLoading(false)
+      setAttendees(data ?? [])
     }
     void loadAttendees()
   }, [])
@@ -389,7 +380,9 @@ function App() {
                 <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full border border-white/40 opacity-30" />
                 <div className="relative flex flex-col gap-6">
                   <div className="space-y-3">
-                    <h2 className="font-spooky text-3xl text-midnight lg:text-4xl">RSVP for you & your 👻</h2>
+                    <h2 className="font-spooky text-3xl text-midnight lg:text-4xl">
+                      RSVP for you & your 👻
+                    </h2>
                   </div>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -454,7 +447,9 @@ function App() {
 
               {/* Attendees List */}
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <h2 className="mb-4 font-spooky text-3xl text-amber-200 lg:text-4xl">Who's Coming</h2>
+                <h2 className="mb-4 font-spooky text-3xl text-amber-200 lg:text-4xl">
+                  Who's Coming
+                </h2>
                 <div className="max-h-[400px] overflow-y-auto rounded-lg bg-white/60 text-black shadow lg:max-h-[500px]">
                   <ul className="divide-y divide-black/10">
                     {attendees.map((a) => (
