@@ -1,6 +1,6 @@
-import { Suspense } from 'react'
+import { Suspense, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { useGLTF, View } from '@react-three/drei'
+import { Float, Sparkles, useGLTF, View } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 
 import ScrollIndicator from './components/ScrollIndicator'
@@ -89,6 +89,41 @@ function LandingViewScene() {
   )
 }
 
+function RsvpViewScene() {
+  const { scene } = useGLTF('/jackolantern.glb')
+  const pumpkin = useMemo(() => scene.clone(), [scene])
+
+  return (
+    <>
+      <color attach="background" args={["#070819"]} />
+      <ambientLight intensity={0.6} />
+      <spotLight
+        position={[3, 5, 2]}
+        angle={0.5}
+        penumbra={0.6}
+        intensity={2.2}
+        color="#f97316"
+        castShadow
+      />
+      <pointLight position={[-4, 3, -2]} intensity={0.9} color="#fb923c" />
+      <Float speed={1.3} floatIntensity={1.4} rotationIntensity={0.4}>
+        <group position={[0, 0.2, 0]}>
+          <primitive object={pumpkin} scale={2.4} castShadow receiveShadow />
+          <mesh position={[0, -1.6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.5, 1.9, 64]} />
+            <meshStandardMaterial color="#f97316" transparent opacity={0.35} />
+          </mesh>
+          <mesh position={[0, -1.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.2, 48]} />
+            <meshBasicMaterial color="#fde68a" transparent opacity={0.15} />
+          </mesh>
+        </group>
+      </Float>
+      <Sparkles color="#fb923c" count={120} speed={0.6} opacity={0.8} scale={[6, 4, 6]} size={8} />
+    </>
+  )
+}
+
 function App() {
   return (
     <>
@@ -168,7 +203,7 @@ function App() {
         <section id="rsvp" className="h-dvh snap-start">
           <View className="pointer-events-none absolute inset-0 -z-10">
             <Suspense fallback={null}>
-              <LandingViewScene />
+              <RsvpViewScene />
             </Suspense>
           </View>
           <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
@@ -242,5 +277,7 @@ function App() {
     </>
   )
 }
+
+useGLTF.preload('/jackolantern.glb')
 
 export default App
