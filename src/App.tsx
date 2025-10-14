@@ -372,27 +372,27 @@ function App() {
           </div>
         </section>
         <section id="rsvp" className="relative h-dvh snap-start overflow-hidden">
-          <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
-            <div className="grid gap-6 lg:grid-cols-2">
+          <div className="relative mx-auto flex h-full max-w-6xl flex-col justify-center px-6 py-6">
+            <div className="flex justify-center">
               {/* RSVP Card */}
-              <div className="relative overflow-hidden rounded-3xl border border-pumpkin/40 bg-gradient-to-br from-pumpkin via-ember to-pumpkin/70 p-4 text-midnight shadow-[0_15px_45px_rgba(249,115,22,0.45)]">
-                <div className="absolute -right-12 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full border border-white/40 opacity-40" />
-                <div className="absolute -left-16 -top-16 h-44 w-44 rounded-full border border-white/40 opacity-30" />
-                <div className="relative flex flex-col gap-6">
-                  <div className="space-y-3">
-                    <h2 className="font-spooky text-3xl text-midnight lg:text-4xl">
+              <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-pumpkin/40 bg-gradient-to-br from-pumpkin via-ember to-pumpkin/70 p-8 text-midnight shadow-[0_15px_45px_rgba(249,115,22,0.45)]">
+                <div className="absolute -right-12 top-1/2 h-48 w-full -translate-y-1/2 rounded-full border border-white/40 opacity-40" />
+                <div className="absolute -left-16 -top-16 rounded-full border border-white/40 opacity-30" />
+                <div className="relative flex flex-col gap-4">
+                  <div className="space-y-4">
+                    <h2 className="font-spooky text-4xl text-midnight lg:text-5xl">
                       RSVP for you & your 👻
                     </h2>
                   </div>
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-semibold">
+                      <label htmlFor="name" className="block text-lg font-semibold">
                         Name
                       </label>
                       <input
                         id="name"
                         type="text"
-                        className="mt-1 w-full rounded-lg border border-black/10 bg-white/90 px-3 py-2 text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
+                        className="mt-2 w-full rounded-lg border border-black/10 bg-white/90 px-4 py-3 text-lg text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
                         placeholder="e.g. Sally Skellington"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -400,39 +400,39 @@ function App() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="costume hint" className="block text-sm font-semibold">
+                      <label htmlFor="costume hint" className="block text-lg font-semibold">
                         Costume Hint
                       </label>
                       <input
                         id="costume hint"
                         type="text"
-                        className="mt-1 w-full rounded-lg border border-black/10 bg-white/90 px-3 py-2 text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
+                        className="mt-2 w-full rounded-lg border border-black/10 bg-white/90 px-4 py-3 text-lg text-black placeholder-black/40 shadow-sm focus:border-black/30 focus:outline-none"
                         placeholder="e.g. Vampire Accountant 🧛‍♂️🧮"
                         value={costume}
                         onChange={(e) => setCostume(e.target.value)}
                       />
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <input
                         id="coming"
                         type="checkbox"
-                        className="h-4 w-4 rounded border-black/30 text-amber-600 focus:ring-amber-500"
+                        className="h-5 w-5 rounded border-black/30 text-amber-600 focus:ring-amber-500"
                         checked={coming}
                         onChange={(e) => setComing(e.target.checked)}
                       />
-                      <label htmlFor="coming" className="select-none">
+                      <label htmlFor="coming" className="select-none text-lg">
                         I'm coming!
                       </label>
                     </div>
                     {submitError ? (
-                      <p className="text-sm font-medium text-red-900">{submitError}</p>
+                      <p className="text-base font-medium text-red-900">{submitError}</p>
                     ) : null}
                     {submitSuccess ? (
-                      <p className="text-sm font-medium text-green-900">{submitSuccess}</p>
+                      <p className="text-base font-medium text-green-900">{submitSuccess}</p>
                     ) : null}
                     <button
                       type="submit"
-                      className="inline-flex items-center justify-center rounded-lg bg-midnight px-4 py-2 font-semibold text-amber-200 shadow hover:bg-black/90 disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-midnight px-6 py-4 text-lg font-semibold text-amber-200 shadow hover:bg-black/90 disabled:opacity-60"
                       disabled={submitLoading || !supabaseRef.current}
                     >
                       {submitLoading
@@ -444,12 +444,17 @@ function App() {
                   </form>
                 </div>
               </div>
-
+            </div>
+          </div>
+        </section>
+        <section id="attendees" className="relative h-dvh snap-start overflow-hidden">
+          <div className="relative mx-auto flex h-full max-w-4xl flex-col justify-center px-6 py-12">
+            <div className="flex flex-col items-center">
+              <h2 className="mb-8 font-spooky text-4xl text-amber-200 lg:text-5xl">
+                Who's Coming
+              </h2>
               {/* Attendees List */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <h2 className="mb-4 font-spooky text-3xl text-amber-200 lg:text-4xl">
-                  Who's Coming
-                </h2>
+              <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                 <div className="max-h-[400px] overflow-y-auto rounded-lg bg-white/60 text-black shadow lg:max-h-[500px]">
                   <ul className="divide-y divide-black/10">
                     {attendees.map((a) => (
