@@ -200,7 +200,7 @@ function App() {
         <section id="rsvp" className="relative h-dvh snap-start overflow-hidden">
           <View
             index={2}
-            className="pointer-events-none absolute inset-0 -z-10"
+            className="pointer-events-none absolute inset-0 -z-10 h-full w-full"
             style={{ width: '100%', height: '100%' }}
           >
             <Suspense fallback={null}>
